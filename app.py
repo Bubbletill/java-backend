@@ -91,5 +91,64 @@ def pos_today():
     return str(result['trans']), 200
 
 
+# Stock
+@app.route('/stock/category', methods=['POST'])
+def stock_category():
+    if 'token' not in request.get_json() or 'category' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT description FROM categories WHERE `id` = %s"
+    adr = (request.get_json()['category'],)
+    cur.execute(sql, adr)
+
+    result = cur.fetchone()
+    if result is None:
+        return '{"success": false, "message":"Invalid category."}', 200
+
+    return '{"success": true, "message":"' + result['description'] + '"}', 200
+
+
+@app.route('/stock/item', methods=['POST'])
+def stock_item():
+    if 'token' not in request.get_json() or 'category' not in request.get_json() or 'code' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT description, price FROM stock WHERE `category` = %s AND `code` = %s"
+    adr = (request.get_json()['category'], request.get_json()['code'], )
+    cur.execute(sql, adr)
+
+    result = cur.fetchone()
+    if result is None:
+        return '{"success": false, "message":"Invalid item."}', 200
+
+    success = {"success": True}
+    result.update(success)
+    return jsonify(result), 200
+
+
 if __name__ == '__main__':
     app.run()
