@@ -137,7 +137,7 @@ def stock_item():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT description, price FROM stock WHERE `category` = %s AND `code` = %s"
+    sql = "SELECT * FROM stock WHERE `category` = %s AND `code` = %s"
     adr = (request.get_json()['category'], request.get_json()['code'], )
     cur.execute(sql, adr)
 
@@ -148,6 +148,34 @@ def stock_item():
     success = {"success": True}
     result.update(success)
     return jsonify(result), 200
+
+# POS
+@app.route('/pos/suspend', methods=['POST'])
+def pos_suspend():
+    if 'token' not in request.get_json() or 'store' not in request.get_json() \
+            or 'date' not in request.get_json() or 'reg' not in request.get_json() \
+            or 'oper' not in request.get_json() or 'items' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor()
+
+    sql = "INSERT INTO `suspended` (`store`, `date`, `reg`, `oper`, `items`) VALUES (%s, %s, %s, %s, %s)"
+    adr = (request.get_json()['store'], request.get_json()['date'], request.get_json()['reg'], request.get_json()['oper'], request.get_json()['items'],)
+    cur.execute(sql, adr)
+
+    cnx.commit()
+
+    return '', 200
 
 
 if __name__ == '__main__':
