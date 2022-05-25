@@ -80,8 +80,9 @@ def pos_today():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT trans FROM transactions WHERE `store` = %s AND `register` = %s AND `date` = %s"
-    adr = (request.get_json()['store'], request.get_json()['reg'], datetime.today().strftime('%Y-%m-%d'),)
+    sql = "SELECT trans FROM transactions WHERE `store` = %s AND `register` = %s AND `date` = %s ORDER BY trans DESC"
+    adr = (request.get_json()['store'], request.get_json()['reg'], datetime.today().strftime('%d/%m/%y'),)
+    print(adr)
     cur.execute(sql, adr)
 
     result = cur.fetchone()
@@ -151,6 +152,37 @@ def stock_item():
 
 
 # POS
+@app.route('/pos/submit', methods=['POST'])
+def pos_submit():
+    if 'token' not in request.get_json() or 'store' not in request.get_json() \
+            or 'register' not in request.get_json() or 'date' not in request.get_json() \
+            or 'trans' not in request.get_json() or 'oper' not in request.get_json() \
+            or 'items' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor()
+
+    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `trans`, `oper`, `items`) VALUES (%s, %s, %s, %s, %s, %s)"
+    adr = (
+    request.get_json()['store'], request.get_json()['register'], request.get_json()['date'], request.get_json()['trans'],
+    request.get_json()['oper'], request.get_json()['items'],)
+    cur.execute(sql, adr)
+
+    cnx.commit()
+
+    return '', 200
+
+
 @app.route('/pos/suspend', methods=['POST'])
 def pos_suspend():
     if 'token' not in request.get_json() or 'store' not in request.get_json() \
