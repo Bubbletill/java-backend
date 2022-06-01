@@ -157,7 +157,8 @@ def pos_submit():
     if 'token' not in request.get_json() or 'store' not in request.get_json() \
             or 'register' not in request.get_json() or 'date' not in request.get_json() \
             or 'trans' not in request.get_json() or 'oper' not in request.get_json() \
-            or 'items' not in request.get_json():
+            or 'items' not in request.get_json() or 'total' not in request.get_json() \
+            or 'primary_method' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -172,10 +173,14 @@ def pos_submit():
     )
     cur = cnx.cursor()
 
-    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `trans`, `oper`, `items`) VALUES (%s, %s, %s, %s, %s, %s)"
+    items = json.loads(request.get_json()['items'])
+
+    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `oper`, `items`, `total`, `primary_method`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
     adr = (
-    request.get_json()['store'], request.get_json()['register'], request.get_json()['date'], request.get_json()['trans'],
-    request.get_json()['oper'], request.get_json()['items'],)
+        request.get_json()['store'], request.get_json()['register'], request.get_json()['date'],
+        items['time'], request.get_json()['trans'],
+        request.get_json()['oper'], request.get_json()['items'], request.get_json()['total'],
+        request.get_json()['primary_method'],)
     cur.execute(sql, adr)
 
     cnx.commit()
@@ -204,8 +209,8 @@ def pos_suspend():
 
     sql = "INSERT INTO `suspended` (`store`, `date`, `reg`, `oper`, `items`) VALUES (%s, %s, %s, %s, %s)"
     adr = (
-    request.get_json()['store'], request.get_json()['date'], request.get_json()['reg'], request.get_json()['oper'],
-    request.get_json()['items'],)
+        request.get_json()['store'], request.get_json()['date'], request.get_json()['reg'], request.get_json()['oper'],
+        request.get_json()['items'],)
     cur.execute(sql, adr)
 
     cnx.commit()
@@ -268,7 +273,7 @@ def pos_listsuspended():
     cur = cnx.cursor(dictionary=True)
 
     sql = "SELECT `usid`, `date`, `reg`, `oper` FROM suspended WHERE `store` = %s"
-    adr = (request.get_json()['store'], )
+    adr = (request.get_json()['store'],)
     cur.execute(sql, adr)
 
     result = cur.fetchall()
