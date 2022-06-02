@@ -158,7 +158,7 @@ def pos_submit():
             or 'register' not in request.get_json() or 'date' not in request.get_json() \
             or 'trans' not in request.get_json() or 'oper' not in request.get_json() \
             or 'items' not in request.get_json() or 'total' not in request.get_json() \
-            or 'primary_method' not in request.get_json():
+            or 'primary_method' not in request.get_json() or 'type' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -175,10 +175,10 @@ def pos_submit():
 
     items = json.loads(request.get_json()['items'])
 
-    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `oper`, `items`, `total`, `primary_method`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `type`, `oper`, `items`, `total`, `primary_method`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
     adr = (
         request.get_json()['store'], request.get_json()['register'], request.get_json()['date'],
-        items['time'], request.get_json()['trans'],
+        items['time'], request.get_json()['trans'], request.get_json()['type'],
         request.get_json()['oper'], request.get_json()['items'], request.get_json()['total'],
         request.get_json()['primary_method'],)
     cur.execute(sql, adr)
