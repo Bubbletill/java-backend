@@ -284,9 +284,71 @@ def pos_listsuspended():
     return jsonify(result), 200
 
 
+@app.route('/pos/getfloat', methods=['POST'])
+def pos_getfloat():
+    if 'token' not in request.get_json() or 'store' not in request.get_json() \
+            or 'reg' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT * FROM floats WHERE `store` = %s AND `reg` = %s"
+    adr = (request.get_json()['store'], request.get_json()['reg'],)
+    cur.execute(sql, adr)
+
+    result = cur.fetchone()
+    if result is None:
+        return '{"success": false, "message":"Potential float not found"}', 200
+
+    return jsonify(result), 200
+
+
 # Back office
 @app.route('/bo/listoperators', methods=['POST'])
 def bo_listoperators():
+    if 'token' not in request.get_json() or 'store' not in request.get_json() \
+            or 'startDate' not in request.get_json() or 'endDate' not in request.get_json() \
+            or 'startTime' not in request.get_json() or 'endTime' not in request.get_json() \
+            or 'register' not in request.get_json() or 'operator' not in request.get_json() \
+            or 'startTotal' not in request.get_json() or 'endTotal' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT * FROM `transactions` WHERE `store` = %s"
+
+    adr = (request.get_json()['store'],)
+    cur.execute(sql, adr)
+
+    result = cur.fetchall()
+    if result is None:
+        return '{"success": false, "message":"No transactions found."}', 200
+
+    return jsonify(result), 200
+
+
+@app.route('/bo/listtransactions', methods=['POST'])
+def bo_listtransactions():
     if 'token' not in request.get_json() or 'store' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
@@ -302,13 +364,13 @@ def bo_listoperators():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT `id`, `name`, `manager` FROM operators WHERE `managing_store` = %s"
+    sql = "SELECT `usid`, `date`, `reg`, `oper`, `total` FROM suspended WHERE `store` = %s"
     adr = (request.get_json()['store'],)
     cur.execute(sql, adr)
 
     result = cur.fetchall()
     if result is None:
-        return '{"success": false, "message":"No operators found."}', 200
+        return '{"success": false, "message":"No transactions found."}', 200
 
     return jsonify(result), 200
 
