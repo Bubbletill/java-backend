@@ -192,7 +192,8 @@ def pos_submit():
 def pos_suspend():
     if 'token' not in request.get_json() or 'store' not in request.get_json() \
             or 'date' not in request.get_json() or 'reg' not in request.get_json() \
-            or 'oper' not in request.get_json() or 'items' not in request.get_json():
+            or 'oper' not in request.get_json() or 'items' not in request.get_json() \
+            or 'total' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -207,10 +208,10 @@ def pos_suspend():
     )
     cur = cnx.cursor()
 
-    sql = "INSERT INTO `suspended` (`store`, `date`, `reg`, `oper`, `items`) VALUES (%s, %s, %s, %s, %s)"
+    sql = "INSERT INTO `suspended` (`store`, `date`, `reg`, `oper`, `items`, `total`) VALUES (%s, %s, %s, %s, %s, %s)"
     adr = (
         request.get_json()['store'], request.get_json()['date'], request.get_json()['reg'], request.get_json()['oper'],
-        request.get_json()['items'],)
+        request.get_json()['items'], request.get_json()['total'],)
     cur.execute(sql, adr)
 
     cnx.commit()
@@ -272,13 +273,42 @@ def pos_listsuspended():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT `usid`, `date`, `reg`, `oper` FROM suspended WHERE `store` = %s"
+    sql = "SELECT `usid`, `date`, `reg`, `oper`, `total` FROM suspended WHERE `store` = %s"
     adr = (request.get_json()['store'],)
     cur.execute(sql, adr)
 
     result = cur.fetchall()
     if result is None:
         return '{"success": false, "message":"No transactions found."}', 200
+
+    return jsonify(result), 200
+
+
+# Back office
+@app.route('/bo/listoperators', methods=['POST'])
+def bo_listoperators():
+    if 'token' not in request.get_json() or 'store' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT `id`, `name`, `manager` FROM operators WHERE `managing_store` = %s"
+    adr = (request.get_json()['store'],)
+    cur.execute(sql, adr)
+
+    result = cur.fetchall()
+    if result is None:
+        return '{"success": false, "message":"No operators found."}', 200
 
     return jsonify(result), 200
 
