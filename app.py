@@ -158,7 +158,8 @@ def pos_submit():
             or 'register' not in request.get_json() or 'date' not in request.get_json() \
             or 'trans' not in request.get_json() or 'oper' not in request.get_json() \
             or 'items' not in request.get_json() or 'total' not in request.get_json() \
-            or 'primary_method' not in request.get_json() or 'type' not in request.get_json():
+            or 'primary_method' not in request.get_json() or 'type' not in request.get_json() \
+            or 'time' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -178,7 +179,7 @@ def pos_submit():
     sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `type`, `oper`, `items`, `total`, `primary_method`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
     adr = (
         request.get_json()['store'], request.get_json()['register'], request.get_json()['date'],
-        items['time'], request.get_json()['trans'], request.get_json()['type'],
+        request.get_json()['time'], request.get_json()['trans'], request.get_json()['type'],
         request.get_json()['oper'], request.get_json()['items'], request.get_json()['total'],
         request.get_json()['primary_method'],)
     cur.execute(sql, adr)
@@ -316,6 +317,34 @@ def pos_getfloat():
 # Back office
 @app.route('/bo/listoperators', methods=['POST'])
 def bo_listoperators():
+    if 'token' not in request.get_json() or 'store' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT `id`, `name`, `manager` FROM operators WHERE `managing_store` = %s"
+    adr = (request.get_json()['store'],)
+    cur.execute(sql, adr)
+
+    result = cur.fetchall()
+    if result is None:
+        return '{"success": false, "message":"No operators found."}', 200
+
+    return jsonify(result), 200
+
+
+@app.route('/bo/listtransactions', methods=['POST'])
+def bo_listtransactions():
     if 'token' not in request.get_json() or 'store' not in request.get_json() \
             or 'startDate' not in request.get_json() or 'endDate' not in request.get_json() \
             or 'startTime' not in request.get_json() or 'endTime' not in request.get_json() \
@@ -335,9 +364,25 @@ def bo_listoperators():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT * FROM `transactions` WHERE `store` = %s"
+    sql = "SELECT * FROM `transactions` WHERE `store` = %s AND `date` BETWEEN %s AND %s and `time` BETWEEN %s and %s AND `total` BETWEEN %s and %s"
+    adr = (request.get_json()['store'], request.get_json()['startDate'], request.get_json()['endDate'],
+           request.get_json()['startTime'], request.get_json()['endTime'], request.get_json()['startTotal'],
+           request.get_json()['endTotal'],)
 
-    adr = (request.get_json()['store'],)
+    if request.get_json()['register'] != "":
+        sql += " AND `register` = %s"
+        adr += request.get_json()['register'],
+        print("reg null " + str(adr))
+    else:
+        sql += " AND `register` IS NOT NULL"
+
+    if request.get_json()['operator'] != "":
+        sql += " AND `oper` = %s"
+        adr += request.get_json()['operator'],
+        print("oper null " + str(adr))
+    else:
+        sql += " AND `oper` IS NOT NULL"
+
     cur.execute(sql, adr)
 
     result = cur.fetchall()
@@ -347,9 +392,11 @@ def bo_listoperators():
     return jsonify(result), 200
 
 
-@app.route('/bo/listtransactions', methods=['POST'])
-def bo_listtransactions():
-    if 'token' not in request.get_json() or 'store' not in request.get_json():
+@app.route('/bo/gettrans', methods=['POST'])
+def bo_gettrans():
+    if 'token' not in request.get_json() or 'store' not in request.get_json() \
+            or 'register' not in request.get_json() or 'trans' not in request.get_json() \
+            or 'date' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -364,13 +411,14 @@ def bo_listtransactions():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT `usid`, `date`, `reg`, `oper`, `total` FROM suspended WHERE `store` = %s"
-    adr = (request.get_json()['store'],)
+    sql = "SELECT `items` FROM transactions WHERE `store` = %s AND `register` = %s AND `trans` = %s AND `date` = %s"
+    adr = (request.get_json()['store'], request.get_json()['register'], request.get_json()['trans'],
+           request.get_json()['date'],)
     cur.execute(sql, adr)
 
-    result = cur.fetchall()
+    result = cur.fetchone()
     if result is None:
-        return '{"success": false, "message":"No transactions found."}', 200
+        return '{"success": false, "message":"Transaction not found"}', 200
 
     return jsonify(result), 200
 
