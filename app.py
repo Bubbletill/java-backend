@@ -372,14 +372,12 @@ def bo_listtransactions():
     if request.get_json()['register'] != "":
         sql += " AND `register` = %s"
         adr += request.get_json()['register'],
-        print("reg null " + str(adr))
     else:
         sql += " AND `register` IS NOT NULL"
 
     if request.get_json()['operator'] != "":
         sql += " AND `oper` = %s"
         adr += request.get_json()['operator'],
-        print("oper null " + str(adr))
     else:
         sql += " AND `oper` IS NOT NULL"
 
@@ -422,6 +420,32 @@ def bo_gettrans():
 
     return jsonify(result), 200
 
+
+@app.route('/bo/postvoid', methods=['POST'])
+def bo_postvoid():
+    if 'token' not in request.get_json() or 'utid' not in request.get_json() \
+            or 'items' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor()
+
+    sql = "UPDATE `transactions` SET `type` = %s, `items` = %s WHERE `utid` = %s"
+    adr = ("VOID", request.get_json()['items'], request.get_json()['utid'],)
+    cur.execute(sql, adr)
+
+    cnx.commit()
+
+    return 'Success', 200
 
 if __name__ == '__main__':
     app.run()
