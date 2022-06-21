@@ -93,6 +93,30 @@ def pos_today():
 
 
 # Stock
+@app.route('/stock/categories', methods=['POST'])
+def stock_categories():
+    if 'token' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT * FROM categories"
+    cur.execute(sql)
+
+    result = cur.fetchall()
+
+    return jsonify(result), 200
+
 @app.route('/stock/category', methods=['POST'])
 def stock_category():
     if 'token' not in request.get_json() or 'category' not in request.get_json():
@@ -148,6 +172,31 @@ def stock_item():
 
     success = {"success": True}
     result.update(success)
+    return jsonify(result), 200
+
+
+@app.route('/stock/items', methods=['POST'])
+def stock_items():
+    if 'token' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    cnx = mysql.connector.connect(
+        host=mysql_host,
+        port=mysql_port,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database
+    )
+    cur = cnx.cursor(dictionary=True)
+
+    sql = "SELECT category, code, description, price FROM stock"
+    cur.execute(sql)
+
+    result = cur.fetchall()
+
     return jsonify(result), 200
 
 
@@ -285,35 +334,6 @@ def pos_listsuspended():
     return jsonify(result), 200
 
 
-@app.route('/pos/getfloat', methods=['POST'])
-def pos_getfloat():
-    if 'token' not in request.get_json() or 'store' not in request.get_json() \
-            or 'reg' not in request.get_json():
-        return '{"success": false, "message":"Incomplete request."}', 200
-
-    if request.get_json()['token'] not in accessTokens:
-        return '{"success": false, "message":"Invalid access token."}', 403
-
-    cnx = mysql.connector.connect(
-        host=mysql_host,
-        port=mysql_port,
-        user=mysql_user,
-        password=mysql_password,
-        database=mysql_database
-    )
-    cur = cnx.cursor(dictionary=True)
-
-    sql = "SELECT * FROM floats WHERE `store` = %s AND `reg` = %s"
-    adr = (request.get_json()['store'], request.get_json()['reg'],)
-    cur.execute(sql, adr)
-
-    result = cur.fetchone()
-    if result is None:
-        return '{"success": false, "message":"Potential float not found"}', 200
-
-    return jsonify(result), 200
-
-
 # Back office
 @app.route('/bo/listoperators', methods=['POST'])
 def bo_listoperators():
@@ -332,7 +352,7 @@ def bo_listoperators():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT `id`, `name`, `manager` FROM operators WHERE `managing_store` = %s"
+    sql = "SELECT * FROM operators WHERE `managing_store` = %s"
     adr = (request.get_json()['store'],)
     cur.execute(sql, adr)
 
