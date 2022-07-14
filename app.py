@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import mysql.connector
+import redis
 from datetime import datetime
 import json
 
@@ -16,9 +17,17 @@ with open('db.json', 'r') as dbFile:
     mysql_user = data['user']
     mysql_password = data['password']
     mysql_database = data['database']
+    redis_host = data['redis_host']
+    redis_port = int(data['redis_port'])
+    redis_database = int(data['redis_database'])
+    redis_password = data['redis_password']
 
 print(" * Starting flask...")
 app = Flask(__name__)
+
+
+def createredis():
+    return redis.Redis(host=redis_host, port=redis_port, db=redis_database, password=redis_password)
 
 
 @app.route('/')
@@ -92,6 +101,23 @@ def pos_today():
     return str(result['trans']), 200
 
 
+@app.route('/pos/status', methods=['POST'])
+def pos_status():
+    if 'token' not in request.get_json() or 'reg' not in request.get_json() or 'store' not in request.get_json():
+        return '{"success": false, "message":"Incomplete request."}', 200
+
+    if request.get_json()['token'] not in accessTokens:
+        return '{"success": false, "message":"Invalid access token."}', 403
+
+    r = createredis()
+    statusKey = "bt:store:" + str(request.get_json()['store']) + ":reg:" + str(request.get_json()['reg']) + ":status"
+    if not r.exists(statusKey):
+        r.hset(statusKey, "open", "false")
+        r.hset(statusKey, "openingFloat", "0.00")
+
+    return '{"success": true, "open": "' + str(r.hget(statusKey, "open")) + '", "openingFloat": "' + str(r.hget(statusKey, "openingFloat")) + '"}', 200
+
+
 # Stock
 @app.route('/stock/categories', methods=['POST'])
 def stock_categories():
@@ -116,6 +142,7 @@ def stock_categories():
     result = cur.fetchall()
 
     return jsonify(result), 200
+
 
 @app.route('/stock/category', methods=['POST'])
 def stock_category():
@@ -204,11 +231,11 @@ def stock_items():
 @app.route('/pos/submit', methods=['POST'])
 def pos_submit():
     if 'token' not in request.get_json() or 'store' not in request.get_json() \
-            or 'register' not in request.get_json() or 'date' not in request.get_json() \
-            or 'trans' not in request.get_json() or 'oper' not in request.get_json() \
-            or 'items' not in request.get_json() or 'total' not in request.get_json() \
-            or 'primary_method' not in request.get_json() or 'type' not in request.get_json() \
-            or 'time' not in request.get_json():
+            or 'data' not in request.get_json() or 'time' not in request.get_json() \
+            or 'register' not in request.get_json() or 'oper' not in request.get_json() \
+            or 'trans' not in request.get_json() or 'type' not in request.get_json() \
+            or 'basket' not in request.get_json() or 'data' not in request.get_json() \
+            or 'total' not in request.get_json() or 'methods' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -223,14 +250,17 @@ def pos_submit():
     )
     cur = cnx.cursor()
 
-    items = json.loads(request.get_json()['items'])
+    basket = json.loads(request.get_json()['basket'])
+    data = json.loads(request.get_json()['data'])
+    methods = json.loads(request.get_json()['methods'])
 
-    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `type`, `oper`, `items`, `total`, `primary_method`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+
+    sql = "INSERT INTO `transactions` (`store`, `register`, `date`, `time`, `trans`, `type`, `oper`, `basket`, `data`, `total`, `methods`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
     adr = (
         request.get_json()['store'], request.get_json()['register'], request.get_json()['date'],
         request.get_json()['time'], request.get_json()['trans'], request.get_json()['type'],
-        request.get_json()['oper'], request.get_json()['items'], request.get_json()['total'],
-        request.get_json()['primary_method'],)
+        request.get_json()['oper'], str(basket), str(data),
+        request.get_json()['total'], str(methods),)
     cur.execute(sql, adr)
 
     cnx.commit()
@@ -466,6 +496,7 @@ def bo_postvoid():
     cnx.commit()
 
     return 'Success', 200
+
 
 if __name__ == '__main__':
     app.run()
