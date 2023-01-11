@@ -189,7 +189,7 @@ def stock_item():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT * FROM stock WHERE `category` = %s AND `code` = %s"
+    sql = "SELECT * FROM stock WHERE `category` = %s AND `itemCode` = %s"
     adr = (request.get_json()['category'], request.get_json()['code'],)
     cur.execute(sql, adr)
 
@@ -219,7 +219,7 @@ def stock_items():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT category, code, description, price FROM stock"
+    sql = "SELECT category, itemCode, description, price FROM stock"
     cur.execute(sql)
 
     result = cur.fetchall()
@@ -367,7 +367,7 @@ def pos_listsuspended():
 # Back office
 @app.route('/bo/listoperators', methods=['POST'])
 def bo_listoperators():
-    if 'token' not in request.get_json() or 'store' not in request.get_json():
+    if 'token' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -382,9 +382,8 @@ def bo_listoperators():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT * FROM operators WHERE `managing_store` = %s"
-    adr = (request.get_json()['store'],)
-    cur.execute(sql, adr)
+    sql = "SELECT * FROM operators"
+    cur.execute(sql)
 
     result = cur.fetchall()
     if result is None:
@@ -499,4 +498,4 @@ def bo_postvoid():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0", port=5000)
