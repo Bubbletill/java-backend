@@ -367,7 +367,7 @@ def pos_listsuspended():
 # Back office
 @app.route('/bo/listoperators', methods=['POST'])
 def bo_listoperators():
-    if 'token' not in request.get_json():
+    if 'token' not in request.get_json() or 'store' not in request.get_json():
         return '{"success": false, "message":"Incomplete request."}', 200
 
     if request.get_json()['token'] not in accessTokens:
@@ -382,8 +382,9 @@ def bo_listoperators():
     )
     cur = cnx.cursor(dictionary=True)
 
-    sql = "SELECT * FROM operators"
-    cur.execute(sql)
+    sql = "SELECT * FROM operators WHERE `managing_store` = %s"
+    adr = (request.get_json()['store'],)
+    cur.execute(sql, adr)
 
     result = cur.fetchall()
     if result is None:
